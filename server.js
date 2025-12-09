@@ -1,49 +1,61 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
+const { Server } = require('socket.io');
+
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
 const PORT = 3000;
-
-app.use(express.json());
-app.use(express.static('public')); // serve HTML from public folder
-
 const FILE_PATH = path.join(__dirname, 'assignments.json');
 
-// Helper: load assignments
+app.use(express.json());
+app.use(express.static('public'));
+
+// Load assignments
 function loadAssignments() {
     if (!fs.existsSync(FILE_PATH)) return [];
     return JSON.parse(fs.readFileSync(FILE_PATH, 'utf-8'));
 }
 
-// Helper: save assignments
+// Save assignments
 function saveAssignments(data) {
     fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2));
 }
 
-// Get current assignments
+// API: Get current assignments
 app.get('/api/assignments', (req, res) => {
-    const assignments = loadAssignments();
-    res.json(assignments);
+    res.json(loadAssignments());
 });
 
-// Pick a random name
-app.post('/api/pick', (req, res) => {
-    const { picker, names } = req.body;
-    if (!picker || !names) return res.status(400).json({ error: 'Missing picker or names' });
-
+// WebSocket connection
+io.on('connection', (socket) => {
+    console.log('New client connected');
     const assignments = loadAssignments();
-    const pickedNames = assignments.map(a => a.picked);
-    const available = names.filter(n => n !== picker && !pickedNames.includes(n));
+    socket.emit('updateAssignments', assignments);
 
-    if (available.length === 0) return res.status(400).json({ error: 'No names left to pick!' });
+    // Handle picking a name
+    socket.on('pickName', ({ picker, names }) => {
+        const assignments = loadAssignments();
+        const pickedNames = assignments.map(a => a.picked);
+        const available = names.filter(n => n !== picker && !pickedNames.includes(n));
 
-    const randomIndex = Math.floor(Math.random() * available.length);
-    const picked = available[randomIndex];
+        if (available.length === 0) {
+            socket.emit('errorMsg', 'No names left to pick!');
+            return;
+        }
 
-    assignments.push({ picker, picked });
-    saveAssignments(assignments);
+        const picked = available[Math.floor(Math.random() * available.length)];
+        assignments.push({ picker, picked });
+        saveAssignments(assignments);
 
-    res.json({ picked });
+        io.emit('updateAssignments', assignments); // Update everyone
+        socket.emit('picked', picked);             // Notify picker
+    });
+
+    socket.on('disconnect', () => console.log('Client disconnected'));
 });
 
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
