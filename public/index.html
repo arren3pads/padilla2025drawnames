@@ -121,8 +121,17 @@
 <script>
 const socket = io();
 const names = [
-    "Renefe", "Cesar", "Karl", "Sasha", "Leandro", 
-    "Kathy", "Arren", "Rosely", "Kaymee", "JM", "Louise"
+    "Renefe",
+    "Cesar",
+    "Karl",
+    "Sasha",
+    "Leandro",
+    "Kathy",
+    "Arren",
+    "Rosely",
+    "Kaymee",
+    "JM",
+    "Louise"
 ];
 
 const userSelect = document.getElementById('userSelect');
@@ -164,7 +173,7 @@ function showConfetti(){
     confetti({ particleCount: 200, spread: 90, origin: { y: 0.6 } });
 }
 
-// Create gift boxes for remaining names
+// Animate gift boxes
 function animateGiftBoxes(assignments){
     giftBoxesDiv.innerHTML = '';
     const pickedNames = assignments.map(a => a.picked);
@@ -196,7 +205,6 @@ socket.on('updateAssignments', (assignments) => {
     populateUsers(assignments);
     animateGiftBoxes(assignments);
 
-    // Add click to boxes
     document.querySelectorAll('.gift-box').forEach(box => {
         box.onclick = () => {
             const picker = userSelect.value;
@@ -216,7 +224,6 @@ socket.on('picked', (pickedName) => {
 
 socket.on('errorMsg', (msg) => { alert(msg); });
 
-// Pick button triggers first box
 pickBtn.addEventListener('click', () => {
     const picker = userSelect.value;
     if (!picker) return alert("Please select your name!");
