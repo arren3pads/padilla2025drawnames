@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exchange Gift Picker</title>
+<style>
+  body { font-family: Arial; background: #f0f0f0; padding: 20px; }
+  h1 { text-align: center; }
+  select, button { padding: 10px; margin: 5px; }
+  #result { font-size: 1.5em; color: green; margin-top: 20px; }
+  #assignments { margin-top: 30px; background: #fff; padding: 10px; border-radius: 5px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+</style>
+</head>
+<body>
+
+<h1>Exchange Gift Random Name Picker</h1>
+
+<label for="userSelect">Select your name:</label>
+<select id="userSelect"></select>
+<button onclick="pickName()">Pick a Name</button>
+
+<div id="result"></div>
+
+<div id="assignments">
+  <h2>Assignments</h2>
+  <table id="assignmentTable">
+    <thead>
+      <tr><th>Picker</th><th>Picked Name</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+const names = ["Alice", "Bob", "Charlie", "Diana", "Eve"];
+
+async function loadAssignments() {
+    const res = await fetch('/api/assignments');
+    const assignments = await res.json();
+    updateTable(assignments);
+    populateUsers(assignments);
+}
+
+function populateUsers(assignments) {
+    const userSelect = document.getElementById("userSelect");
+    userSelect.innerHTML = "";
+    const pickedNames = assignments.map(a => a.picked);
+    names.forEach(name => {
+        if (!pickedNames.includes(name)) {
+            const option = document.createElement("option");
+            option.value = name;
+            option.text = name;
+            userSelect.appendChild(option);
+        }
+    });
+}
+
+function updateTable(assignments) {
+    const tbody = document.getElementById("assignmentTable").querySelector("tbody");
+    tbody.innerHTML = "";
+    assignments.forEach(a => {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${a.picker}</td><td>${a.picked}</td>`;
+        tbody.appendChild(row);
+    });
+}
+
+async function pickName() {
+    const picker = document.getElementById("userSelect").value;
+    if (!picker) return alert("Please select your name!");
+
+    const res = await fetch('/api/pick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ picker, names })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+        document.getElementById("result").innerText = `${picker}, you have picked: ${data.picked}`;
+        loadAssignments();
+    } else {
+        alert(data.error);
+    }
+}
+
+// Initial load
+loadAssignments();
+</script>
+
+</body>
+</html>
