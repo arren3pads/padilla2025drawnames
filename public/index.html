@@ -3,54 +3,142 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Exchange Gift Picker</title>
+<title>🎁 Gift Exchange Lottery 🎄</title>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <style>
-  body { font-family: Arial; background: #f0f0f0; padding: 20px; }
-  h1 { text-align: center; }
-  select, button { padding: 10px; margin: 5px; }
-  #result { font-size: 1.5em; color: green; margin-top: 20px; }
-  #assignments { margin-top: 30px; background: #fff; padding: 10px; border-radius: 5px; }
+  body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(to bottom, #ffe6e6, #fff5e6);
+    padding: 20px;
+    text-align: center;
+  }
+
+  h1 { color: #d62828; font-size: 2em; margin-bottom: 20px; }
+
+  select, button {
+    padding: 10px 20px;
+    margin: 10px;
+    font-size: 1em;
+    border-radius: 8px;
+    border: 2px solid #d62828;
+    cursor: pointer;
+    background-color: #fff;
+    transition: all 0.3s ease;
+  }
+
+  select:hover, button:hover { transform: scale(1.05); }
+
+  #result {
+    font-size: 1.5em;
+    color: #0a7d00;
+    margin-top: 20px;
+    opacity: 0;
+    transition: opacity 1s;
+  }
+
+  #assignments {
+    margin-top: 30px;
+    background: #fff;
+    padding: 15px;
+    border-radius: 10px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  }
+
   table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+  th, td { padding: 10px; border: 1px solid #ccc; text-align: left; }
+  tr.new-assignment { background-color: #ffffcc; animation: highlight 2s ease; }
+  @keyframes highlight { from { background-color: #ffeb3b; } to { background-color: #fff; } }
+
+  .gift-box {
+    display: inline-block;
+    width: 70px;
+    height: 70px;
+    background: #d62828;
+    border-radius: 8px;
+    margin: 8px;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.3s, background 0.3s;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+  }
+
+  .gift-box.open {
+    background: #ffd700;
+    transform: rotateY(180deg) scale(1.2);
+  }
+
+  .gift-box span {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: bold;
+    color: #000;
+  }
+
+  .gift-box.open span { display: block; }
+
+  .gift-box::before {
+    content: '';
+    position: absolute;
+    top: -10px; left: 25px;
+    width: 20px; height: 20px;
+    background: #ffd700;
+    border-radius: 50%;
+  }
+
 </style>
 </head>
 <body>
 
-<h1>Exchange Gift Random Name Picker</h1>
+<h1>🎄 Gift Exchange Lottery 🎁</h1>
 
 <label for="userSelect">Select your name:</label>
 <select id="userSelect"></select>
-<button onclick="pickName()">Pick a Name</button>
+<button id="pickBtn">Pick Your Gift</button>
 
 <div id="result"></div>
 
+<div id="giftBoxes"></div>
+
 <div id="assignments">
   <h2>Assignments</h2>
-  <table id="assignmentTable">
+  <table>
     <thead>
       <tr><th>Picker</th><th>Picked Name</th></tr>
     </thead>
-    <tbody></tbody>
+    <tbody id="assignmentTable"></tbody>
   </table>
 </div>
 
+<audio id="pickSound" src="https://www.soundjay.com/button/beep-07.mp3"></audio>
+
 <script>
-const names = ["Alice", "Bob", "Charlie", "Diana", "Eve"];
+const socket = io();
+const names = [
+    "Renefe", "Cesar", "Karl", "Sasha", "Leandro", 
+    "Kathy", "Arren", "Rosely", "Kaymee", "JM", "Louise"
+];
 
-async function loadAssignments() {
-    const res = await fetch('/api/assignments');
-    const assignments = await res.json();
-    updateTable(assignments);
-    populateUsers(assignments);
-}
+const userSelect = document.getElementById('userSelect');
+const resultDiv = document.getElementById('result');
+const assignmentTable = document.getElementById('assignmentTable');
+const pickBtn = document.getElementById('pickBtn');
+const giftBoxesDiv = document.getElementById('giftBoxes');
+const pickSound = document.getElementById('pickSound');
 
+// Populate dropdown
 function populateUsers(assignments) {
-    const userSelect = document.getElementById("userSelect");
-    userSelect.innerHTML = "";
+    userSelect.innerHTML = '';
     const pickedNames = assignments.map(a => a.picked);
     names.forEach(name => {
         if (!pickedNames.includes(name)) {
-            const option = document.createElement("option");
+            const option = document.createElement('option');
             option.value = name;
             option.text = name;
             userSelect.appendChild(option);
@@ -58,37 +146,83 @@ function populateUsers(assignments) {
     });
 }
 
-function updateTable(assignments) {
-    const tbody = document.getElementById("assignmentTable").querySelector("tbody");
-    tbody.innerHTML = "";
+// Update table
+function updateTable(assignments, newPicker=null) {
+    assignmentTable.innerHTML = '';
     assignments.forEach(a => {
-        const row = document.createElement("tr");
+        const row = document.createElement('tr');
         row.innerHTML = `<td>${a.picker}</td><td>${a.picked}</td>`;
-        tbody.appendChild(row);
+        if(a.picker === newPicker){
+            row.classList.add('new-assignment');
+        }
+        assignmentTable.appendChild(row);
     });
 }
 
-async function pickName() {
-    const picker = document.getElementById("userSelect").value;
+// Confetti
+function showConfetti(){
+    confetti({ particleCount: 200, spread: 90, origin: { y: 0.6 } });
+}
+
+// Create gift boxes for remaining names
+function animateGiftBoxes(assignments){
+    giftBoxesDiv.innerHTML = '';
+    const pickedNames = assignments.map(a => a.picked);
+    names.forEach(name => {
+        if(!pickedNames.includes(name)){
+            const box = document.createElement('div');
+            box.classList.add('gift-box');
+            const nameSpan = document.createElement('span');
+            nameSpan.innerText = name;
+            box.appendChild(nameSpan);
+            giftBoxesDiv.appendChild(box);
+        }
+    });
+}
+
+// Open gift box animation
+function openGiftBox(box, pickedName){
+    box.classList.add('open');
+    showConfetti();
+    pickSound.play();
+    resultDiv.innerText = `🎉 You picked: ${pickedName} 🎉`;
+    resultDiv.style.opacity = 1;
+    setTimeout(() => { resultDiv.style.opacity = 0; }, 4000);
+}
+
+// WebSocket events
+socket.on('updateAssignments', (assignments) => {
+    updateTable(assignments);
+    populateUsers(assignments);
+    animateGiftBoxes(assignments);
+
+    // Add click to boxes
+    document.querySelectorAll('.gift-box').forEach(box => {
+        box.onclick = () => {
+            const picker = userSelect.value;
+            if(!picker) return alert("Please select your name first!");
+            socket.emit('pickName', {picker, names});
+        };
+    });
+});
+
+socket.on('picked', (pickedName) => {
+    document.querySelectorAll('.gift-box').forEach(box => {
+        if(box.querySelector('span').innerText === pickedName){
+            openGiftBox(box, pickedName);
+        }
+    });
+});
+
+socket.on('errorMsg', (msg) => { alert(msg); });
+
+// Pick button triggers first box
+pickBtn.addEventListener('click', () => {
+    const picker = userSelect.value;
     if (!picker) return alert("Please select your name!");
-
-    const res = await fetch('/api/pick', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ picker, names })
-    });
-
-    const data = await res.json();
-    if (res.ok) {
-        document.getElementById("result").innerText = `${picker}, you have picked: ${data.picked}`;
-        loadAssignments();
-    } else {
-        alert(data.error);
-    }
-}
-
-// Initial load
-loadAssignments();
+    const box = document.querySelector('.gift-box');
+    if(box) box.click();
+});
 </script>
 
 </body>
