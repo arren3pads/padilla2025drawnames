@@ -25,18 +25,12 @@ function saveAssignments(data) {
     fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2));
 }
 
-// API: Get current assignments
-app.get('/api/assignments', (req, res) => {
-    res.json(loadAssignments());
-});
-
 // WebSocket connection
 io.on('connection', (socket) => {
     console.log('New client connected');
     const assignments = loadAssignments();
     socket.emit('updateAssignments', assignments);
 
-    // Handle picking a name
     socket.on('pickName', ({ picker, names }) => {
         const assignments = loadAssignments();
         const pickedNames = assignments.map(a => a.picked);
@@ -51,8 +45,8 @@ io.on('connection', (socket) => {
         assignments.push({ picker, picked });
         saveAssignments(assignments);
 
-        io.emit('updateAssignments', assignments); // Update everyone
-        socket.emit('picked', picked);             // Notify picker
+        io.emit('updateAssignments', assignments);
+        socket.emit('picked', picked);
     });
 
     socket.on('disconnect', () => console.log('Client disconnected'));
