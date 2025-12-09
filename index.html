@@ -1,133 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Christmas Exchange Gift Picker</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #b30000 url('https://www.freepnglogos.com/uploads/snow-png/snow-seasons-greetings-34.png');
-            background-size: cover;
-            background-repeat: no-repeat;
-            background-position: center;
-            text-align: center;
-            padding: 40px;
-            color: white;
-        }
-        .container {
-            max-width: 500px;
-            margin: auto;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 20px;
-            border-radius: 20px;
-        }
-        select, button {
-            padding: 10px;
-            font-size: 16px;
-            margin: 10px;
-            border-radius: 10px;
-        }
-        button {
-            background: #ffcc00;
-            cursor: pointer;
-        }
-        #result {
-            margin-top: 20px;
-            font-size: 22px;
-            font-weight: bold;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 15px;
-            border-radius: 10px;
-        }
-        .note {
-            font-size: 14px;
-            margin-top: 10px;
-            opacity: 0.8;
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Christmas Exchange Gift Picker</title>
+<style>
+body {
+font-family: Arial, sans-serif;
+background: #b30000 url('https://www.freepnglogos.com/uploads/snow-png/snow-seasons-greetings-34.png');
+background-size: cover;
+background-repeat: no-repeat;
+background-position: center;
+text-align: center;
+padding: 40px;
+color: white;
+}
+.container {
+max-width: 500px;
+margin: auto;
+background: rgba(0, 0, 0, 0.5);
+padding: 20px;
+border-radius: 20px;
+}
+select, button {
+padding: 10px;
+font-size: 16px;
+margin: 10px;
+border-radius: 10px;
+}
+button {
+background: #ffcc00;
+cursor: pointer;
+}
+#result {
+margin-top: 20px;
+font-size: 22px;
+font-weight: bold;
+background: rgba(255, 255, 255, 0.2);
+padding: 15px;
+border-radius: 10px;
+}
+.note {
+font-size: 14px;
+margin-top: 10px;
+opacity: 0.8;
+}
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎄 Christmas Exchange Gift Picker 🎁</h1>
-        <p>Select your name and let the magic pick for you!</p>
+<div class="container">
+<h1>🎄 Christmas Exchange Gift Picker 🎁</h1>
+<p>Select your name and let the magic pick for you!</p>
 
-        <select id="userName"></select>
-        <br />
-        <button onclick="pickName()">Pick Random Name</button>
 
-        <div id="result"></div>
-        <p class="note">📸 Take a picture of your assigned person as proof!</p>
-    </div>
+<select id="userName"></select>
+<br />
+<button onclick="pickName()">Pick Random Name</button>
 
-    <script>
-        // --- SERVER-BASED VERSION (PERSISTENT STORAGE FOR ALL USERS) ---
-        // This version uses a backend API to store assignments in a shared file.
-        // You must upload this file with a backend (Node.js, PHP, etc.).
-        // I will provide the backend code separately, ready to host.
 
-        let names = [
-            "Renefe", "Cesar", "Karl", "Sasha", "Leandro",
-            "Kathy", "Arren", "Rosely", "Kaymee", "JM", "Louise"
-        ];
+<div id="result"></div>
+<p class="note">📸 Take a picture of your assigned person as proof!</p>
+</div>
 
-        let assignments = {};
-        let lockedUsers = [];
-        let usedNames = [];
 
-        async function loadData() {
-            const res = await fetch("assignments.json?cache=" + Date.now());
-            const data = await res.json();
-            assignments = data.assignments;
-            lockedUsers = Object.keys(assignments);
-            usedNames = Object.values(assignments);
-            populateDropdown();
-        }
+<script>
+// --- SERVER-BASED VERSION (PERSISTENT STORAGE FOR ALL USERS) ---
+// This version uses a backend API to store assignments in a shared file.
+// You must upload this file with a backend (Node.js, PHP, etc.).
+// I will provide the backend code separately, ready to host.
 
-        function populateDropdown() {
-            const dropdown = document.getElementById("userName");
-            dropdown.innerHTML = "";
 
-            names.forEach(name => {
-                const option = document.createElement("option");
-                option.value = name;
-                option.textContent = name;
-                if (lockedUsers.includes(name)) option.disabled = true;
-                dropdown.appendChild(option);
-            });
-        }
+let names = [
+"Renefe", "Cesar", "Karl", "Sasha", "Leandro",
+"Kathy", "Arren", "Rosely", "Kaymee", "JM", "Louise"
+];
 
-        async function pickName() {
-            const user = document.getElementById("userName").value;
 
-            if (lockedUsers.includes(user)) {
-                document.getElementById("result").innerHTML = "❌ You already picked before!";
-                return;
-            }
+let assignments = {};
+let lockedUsers = [];
+let usedNames = [];
 
-            let available = names.filter(n => n !== user && !usedNames.includes(n));
 
-            if (available.length === 0) {
-                document.getElementById("result").innerHTML = "⚠️ All names have been assigned!";
-                return;
-            }
+async function loadData() {
+const res = await fetch("assignments.json?cache=" + Date.now());
+const data = await res.json();
+assignments = data.assignments;
+lockedUsers = Object.keys(assignments);
+usedNames = Object.values(assignments);
+populateDropdown();
+}
 
-            const random = available[Math.floor(Math.random() * available.length)];
 
-            assignments[user] = random;
+function populateDropdown() {
+const dropdown = document.getElementById("userName");
+dropdown.innerHTML = "";
 
-            await fetch("save.php", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(assignments)
-            });
 
-            document.getElementById("result").innerHTML = `🎁 <b>${user}</b>, you got: <span style="color:#ffcc00">${random}</span>!`;
-            loadData();
-        }
-
-        loadData();
-    </script>
-</body>
-<!-- Updated version with server-based locking and assignments -->
+names.forEach(name => {
+const option = document.createElement("option");
 </html>
